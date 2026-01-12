@@ -4,6 +4,9 @@
 #include <string>
 #include <vector>
 #include <memory>
+using namespace std;
+
+class Payment;
 
 class OrderItem {
 private:
@@ -24,21 +27,27 @@ class Order {
 private:
     int id;
     int userId;
-    std::string status;
+    string status;
     double totalAmount;
-    std::vector<std::unique_ptr<OrderItem>> items;
+    vector<unique_ptr<OrderItem>> items;
+    unique_ptr<Payment> payment;
     
 public:
-    Order(int id, int userId, const std::string& status, double totalAmount);
+    Order(int id, int userId, const string& status, double totalAmount);
+    ~Order() = default;
     
-    void addItem(std::unique_ptr<OrderItem> item);
-    void updateStatus(const std::string& newStatus);
+    void addItem(unique_ptr<OrderItem> item);
+    void removeItem(int productId);
+    void updateStatus(const string& newStatus);
+    void setPayment(unique_ptr<Payment> pmt);
+    bool canBeReturned() const;
     
     int getId() const { return id; }
     int getUserId() const { return userId; }
-    std::string getStatus() const { return status; }
+    string getStatus() const { return status; }
     double getTotalAmount() const { return totalAmount; }
-    const std::vector<std::unique_ptr<OrderItem>>& getItems() const { return items; }
+    const vector<unique_ptr<OrderItem>>& getItems() const { return items; }
+    Payment* getPayment() const { return payment.get(); }
 };
 
 #endif

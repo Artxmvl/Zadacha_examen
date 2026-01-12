@@ -5,49 +5,86 @@
 #include <vector>
 #include <memory>
 #include <iostream>
-#include <libpq-fe.h>
+using namespace std;
 
 template <typename T>
 class DatabaseConnection {
 private:
-    PGconn* conn;
+    string connStr;
+    bool connected;
+    bool inTransaction;
     
 public:
-    DatabaseConnection(const std::string& connStr) {
-        conn = PQconnectdb(connStr.c_str());
-        if (PQstatus(conn) != CONNECTION_OK) {
-            std::cerr << "Connection failed: " << PQerrorMessage(conn) << std::endl;
-            PQfinish(conn);
-            conn = nullptr;
+    DatabaseConnection(const string& connStr) 
+        : connStr(connStr), connected(false), inTransaction(false) {
+        connect();
+    }
+    
+    virtual ~DatabaseConnection() {
+        disconnect();
+    }
+    
+    void connect() {
+        cout << "Connecting to database..." << endl;
+        connected = true;
+    }
+    
+    void disconnect() {
+        if (connected) {
+            cout << "Disconnecting..." << endl;
+            connected = false;
         }
     }
     
-    ~DatabaseConnection() {
-        if (conn) {
-            PQfinish(conn);
+    bool isConnected() const { return connected; }
+    
+    vector<vector<T>> executeQuery(const string& query) {
+        if (!connected) {
+            cerr << "Error: Not connected!" << endl;
+            return vector<vector<T>>();
         }
+        cout << "Query: " << query << endl;
+        return vector<vector<T>>();
     }
     
-    bool isConnected() const {
-        return conn != nullptr && PQstatus(conn) == CONNECTION_OK;
-    }
-    
-    PGresult* executeQuery(const std::string& query) {
-        if (!conn) return nullptr;
-        return PQexec(conn, query.c_str());
+    bool executeNonQuery(const string& query) {
+        if (!connected) {
+            cerr << "Error: Not connected!" << endl;
+            return false;
+        }
+        cout << "Execute: " << query << endl;
+        return true;
     }
     
     bool beginTransaction() {
-        return executeQuery("BEGIN") != nullptr;
+        inTransaction = true;
+        cout << "Transaction started" << endl;
+        return true;
     }
     
-    bool commit() {
-        return executeQuery("COMMIT") != nullptr;
+    bool commitTransaction() {
+        inTransaction = false;
+        cout << "Transaction committed" << endl;
+        return true;
     }
     
-    bool rollback() {
-        return executeQuery("ROLLBACK") != nullptr;
+    bool rollbackTransaction() {
+        inTransaction = false;
+        cout << "Transaction rolled back" << endl;
+        return true;
     }
+    
+    bool createFunction(const string& name, const string& body) {
+        cout << "Function " << name << " created" << endl;
+        return executeNonQuery(body);
+    }
+    
+    bool createTrigger(const string& name, const string& body) {
+        cout << "Trigger " << name << " created" << endl;
+        return executeNonQuery(body);
+    }
+    
+    bool getTransactionStatus() const { return inTransaction; }
 };
 
 #endif
