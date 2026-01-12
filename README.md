@@ -15,7 +15,7 @@
 - PostgreSQL
 - CSV отчёты
 
-## Пользователи
+## Пользователи(выдуманные)
 
 - admin@gmail.com / art1 (Администратор)
 - manager@gmail.com / art2 (Менеджер)  
