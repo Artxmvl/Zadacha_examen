@@ -1,546 +1,429 @@
-Система интернет-магазина на C++
-Оглавление
-Описание задачи
-Архитектура проекта
-Структура базы данных
-Умные указатели и STL
-Система ролей и прав доступа
-Аудит и логирование
-Примеры SQL запросов
-Сборка и запуск
-Описание задачи
-Цель проекта
-Разработать полнофункциональную систему интернет-магазина на C++17 с использованием PostgreSQL, демонстрирующую:
 
-Принципы объектно-ориентированного программирования (ООП)
-Правильное управление памятью через умные указатели
-Работу со стандартной библиотекой (STL)
-Проектирование и работу с реляционной БД
-Написание хранимых процедур и триггеров
-Основные компоненты
-Классы:
+# Система интернет-магазина на C++17
 
-User - базовый класс для пользователей
-Admin - администратор системы (полный доступ)
-Manager - менеджер (обработка заказов)
-Customer - покупатель (работа со своими заказами)
-Order - заказ с товарами и платежом
-OrderItem - элемент заказа
-Product - товар в каталоге
-Payment - платёж заказа
-PaymentStrategy - стратегия оплаты
-CardPayment - оплата картой
-EWalletPayment - электронный кошелёк
-SBPPayment - система быстрых платежей
-DatabaseConnection<T> - шаблонный класс для работы с БД
-Функциональность:
+## Оглавление
 
-Управление товарами (добавление, удаление, изменение)
-Создание и управление заказами
-Три метода оплаты (паттерн Strategy)
-Возврат товаров с проверкой условий (не более 30 дней)
-История изменений статусов заказов
-Полное логирование всех операций
-Система управления доступом (роли и права)
-CSV отчёты по аудиту
-Архитектура проекта
-Иерархия классов
-User (базовый, чисто виртуальный)
-├── Admin
-├── Manager
-└── Customer
+1. [Описание задачи](#описание-задачи)  
+2. [Архитектура проекта](#архитектура-проекта)  
+3. [Структура базы данных](#структура-базы-данных)  
+4. [Умные указатели и STL](#умные-указатели-и-stl)  
+5. [Система ролей и прав доступа](#система-ролей-и-прав-доступа)  
+6. [Аудит и логирование](#аудит-и-логирование)  
+7. [Примеры SQL запросов](#примеры-sql-запросов)  
+8. [Сборка и запуск](#сборка-и-запуск)  
+9. [Структура проекта](#структура-проекта)  
+10. [Использованные техники](#использованные-техники)  
+11. [Контакты](#контакты)  
 
-PaymentStrategy (абстрактный)
-├── CardPayment
-├── EWalletPayment
-└── SBPPayment
+---
 
-Order (использует OrderItem и Payment)
-├── vector<OrderItem>
-└── unique_ptr<Payment>
-Отношения между классами
-Композиция:
+## Описание задачи
 
-Order владеет OrderItem (vector)
-Order владеет Payment (unique_ptr)
-Payment владеет PaymentStrategy (unique_ptr)
-Агрегация:
+Разработана система интернет-магазина на C++17 с использованием PostgreSQL и клиентской библиотеки libpqxx.  
+Проект демонстрирует архитектуру прикладной системы с разделением на слои, корректной работой с памятью и полноценной реляционной базой данных.  
 
-User содержит Order (shared_ptr)
-Admin работает с Product
-Применение паттернов ООП
-1. Наследование
-class User {  // базовый класс
-public:
-    virtual void displayMenu() = 0;  // чисто виртуальная функция
-    virtual bool viewOrderStatus() = 0;
-protected:
-    int userId;
-    string name;
-};
+Основные цели:  
+- Показать применение принципов ООП (наследование, полиморфизм, инкапсуляция, композиция, агрегация).  
+- Продемонстрировать управление ресурсами через умные указатели (RAII-подход).  
+- Использовать STL‑контейнеры и алгоритмы для работы с коллекциями доменных объектов.  
+- Спроектировать и реализовать схему БД PostgreSQL с индексами, триггерами, функциями и процедурами.  
+- Реализовать аудит действий пользователей и историю изменения статусов заказов.  
 
-class Admin : public User {
-public:
-    void displayMenu() override;
-    void addProduct(shared_ptr<Product> product);
-};
-2. Полиморфизм
-class PaymentStrategy {  // абстрактный
-public:
-    virtual bool processPayment(double amount) = 0;
-    virtual ~PaymentStrategy() {}
-};
+Функциональность системы:  
+- Управление каталогом товаров (создание, изменение, удаление, просмотр).  
+- Создание заказов, добавление в них товаров и изменение статусов.  
+- Разные способы оплаты (паттерн Strategy).  
+- Проверка возможности возврата товара (ограничение по сроку).  
+- Ведение аудита всех ключевых операций (insert/update/delete/payment/return).  
 
-class CardPayment : public PaymentStrategy {
-public:
-    bool processPayment(double amount) override;
-private:
-    string cardNumber;
-};
-3. Композиция
-class Order {
-private:
-    vector<OrderItem> items;           // композиция
-    unique_ptr<Payment> payment;       // композиция
-};
+---
 
-class Payment {
-private:
-    unique_ptr<PaymentStrategy> strategy;  // композиция
-};
-4. Агрегация
-class User {
-private:
-    vector<shared_ptr<Order>> orders;  // агрегация
-};
-Структура базы данных
-Таблица: users
+## Архитектура проекта
+
+### Основные классы
+
+**Пользователи и роли:**  
+- `User` — абстрактный базовый класс для всех типов пользователей.  
+- `Admin` — администратор системы (полный доступ к товарам, заказам и аудиту).  
+- `Manager` — менеджер (обработка заказов и платежей, контроль остатков).  
+- `Customer` — покупатель (создание заказов, оплата, возвраты, просмотр своих заказов).  
+
+**Доменные сущности:**  
+- `Product` — товар (наименование, цена, остаток, категория).  
+- `Order` — заказ (товары, сумма, статус, пользователь).  
+- `OrderItem` — позиция заказа (товар, количество, цена).  
+- `Payment` — платёж по заказу.  
+
+**Оплата (паттерн Strategy):**  
+- `PaymentStrategy` — абстрактная стратегия оплаты.  
+- `CardPayment` — оплата банковской картой.  
+- `WalletPayment` — оплата электронным кошельком.  
+- `SBPPayment` — оплата через систему быстрых платежей (СБП).  
+
+**Работа с БД:**  
+- `DatabaseConnection<T>` — шаблонный класс-обёртка над соединением с PostgreSQL, инкапсулирующий подключение, транзакции и выполнение запросов.  
+
+### Взаимоотношения классов
+
+- `User` агрегирует коллекцию заказов (`std::vector<std::shared_ptr<Order>>`).  
+- `Order` композитно владеет элементами `OrderItem` и объектом `Payment`.  
+- `Payment` композитно владеет реализацией `PaymentStrategy`.  
+
+Используются:  
+- Наследование (`Admin`, `Manager`, `Customer` от `User`).  
+- Полиморфизм (виртуальные методы для меню и операций с заказами, стратегии оплаты).  
+- Композиция (жизненный цикл `OrderItem` и `Payment` привязан к `Order`).  
+- Агрегация (пользователь ссылается на свои заказы через `shared_ptr`).  
+
+---
+
+## Структура базы данных
+
+### Таблица users
+
+```sql
 CREATE TABLE users (
-    user_id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
-    role VARCHAR(20) NOT NULL  -- admin, manager, customer
+    user_id       SERIAL PRIMARY KEY,
+    name          VARCHAR(100) NOT NULL,
+    email         VARCHAR(100) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role          VARCHAR(20) NOT NULL,  -- admin, manager, customer
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-Назначение: Хранит информацию о пользователях системы с разными ролями.
+Хранит данные о пользователях и их ролях.
 
-Таблица: products
+Таблица products
+sql
 CREATE TABLE products (
-    product_id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    price NUMERIC(10, 2) CHECK (price > 0),
-    quantity_in_stock INT DEFAULT 0
+    product_id        SERIAL PRIMARY KEY,
+    name              VARCHAR(100) NOT NULL,
+    description       TEXT,
+    price             NUMERIC(10, 2) CHECK (price > 0),
+    quantity_in_stock INT DEFAULT 0 CHECK (quantity_in_stock >= 0),
+    category          VARCHAR(50),
+    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-Назначение: Каталог товаров с ценами и остатками.
+Каталог товаров с ценами, категориями и остатками.
 
-Таблица: orders
+Таблица orders
+sql
 CREATE TABLE orders (
-    order_id SERIAL PRIMARY KEY,
-    user_id INT NOT NULL REFERENCES users(user_id),
-    order_date DATE NOT NULL,
-    status VARCHAR(20) DEFAULT 'pending',  -- pending, completed, cancelled, returned
-    total_amount NUMERIC(10, 2) CHECK (total_amount >= 0)
+    order_id     SERIAL PRIMARY KEY,
+    user_id      INT NOT NULL REFERENCES users(user_id),
+    order_date   DATE NOT NULL,
+    status       VARCHAR(20) DEFAULT 'pending',  -- pending, completed, cancelled, returned
+    total_amount NUMERIC(10, 2) CHECK (total_amount >= 0),
+    created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-Назначение: Основная таблица заказов.
+Основная сущность заказов, связана с пользователями.
 
-Таблица: order_items
+Таблица order_items
+sql
 CREATE TABLE order_items (
     order_item_id SERIAL PRIMARY KEY,
-    order_id INT NOT NULL REFERENCES orders(order_id),
-    product_id INT NOT NULL REFERENCES products(product_id),
-    quantity INT NOT NULL,
-    unit_price NUMERIC(10, 2) NOT NULL
+    order_id      INT NOT NULL REFERENCES orders(order_id),
+    product_id    INT NOT NULL REFERENCES products(product_id),
+    quantity      INT NOT NULL CHECK (quantity > 0),
+    unit_price    NUMERIC(10, 2) NOT NULL,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-Назначение: Товары, входящие в каждый заказ.
+Содержит товары, входящие в каждый заказ.
 
-Таблица: order_status_history
+Таблица order_status_history
+sql
 CREATE TABLE order_status_history (
     history_id SERIAL PRIMARY KEY,
-    order_id INT NOT NULL REFERENCES orders(order_id),
+    order_id   INT NOT NULL REFERENCES orders(order_id),
     old_status VARCHAR(20),
     new_status VARCHAR(20),
-    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    changed_by INT REFERENCES users(user_id)
 );
-Назначение: История смены статусов заказа для аудита.
+Хранит историю изменения статусов заказов (для аудита и трассировки).
 
-Таблица: audit_log
+Таблица payments
+sql
+CREATE TABLE payments (
+    payment_id    SERIAL PRIMARY KEY,
+    order_id      INT NOT NULL REFERENCES orders(order_id),
+    payment_method VARCHAR(50),  -- card, wallet, sbp
+    amount        NUMERIC(10, 2) NOT NULL,
+    status        VARCHAR(20) DEFAULT 'pending',
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+Отражает факты оплаты заказов.
+
+Таблица audit_log
+sql
 CREATE TABLE audit_log (
-    log_id SERIAL PRIMARY KEY,
-    user_id INT,
-    operation VARCHAR(50),
+    log_id     SERIAL PRIMARY KEY,
+    user_id    INT,
+    operation  VARCHAR(50),   -- INSERT, UPDATE, DELETE, PAYMENT, RETURN
     table_name VARCHAR(50),
-    record_id INT,
-    details TEXT,
+    record_id  INT,
+    details    TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-Назначение: Полный журнал всех операций в системе.
+Используется для ведения общего аудита по системе.
 
 Индексы
-CREATE INDEX idx_orders_user_id ON orders(user_id);
-CREATE INDEX idx_order_items_order_id ON order_items(order_id);
-CREATE INDEX idx_order_items_product_id ON order_items(product_id);
-CREATE INDEX idx_order_status_history_order_id ON order_status_history(order_id);
-CREATE INDEX idx_audit_log_user_id ON audit_log(user_id);
-CREATE INDEX idx_audit_log_created_at ON audit_log(created_at);
-CREATE INDEX idx_orders_status ON orders(status);
+sql
+CREATE INDEX idx_orders_user_id              ON orders(user_id);
+CREATE INDEX idx_orders_status               ON orders(status);
+CREATE INDEX idx_order_items_order_id        ON order_items(order_id);
+CREATE INDEX idx_order_items_product_id      ON order_items(product_id);
+CREATE INDEX idx_order_status_history_order  ON order_status_history(order_id);
+CREATE INDEX idx_audit_log_user_id           ON audit_log(user_id);
+CREATE INDEX idx_audit_log_created_at        ON audit_log(created_at);
+CREATE INDEX idx_payments_order_id           ON payments(order_id);
 Умные указатели и STL
-Использование unique_ptr
-Правило: Используйте unique_ptr для эксклюзивного владения ресурсом.
+unique_ptr
+Используется для эксклюзивного владения ресурсами:
 
-// В классе Order
+cpp
 class Order {
 private:
-    unique_ptr<Payment> payment;
-    
+    std::unique_ptr<Payment> payment;
 public:
-    void setPayment(unique_ptr<Payment> p) {
-        payment = move(p);  // передача владения
-    }
-    
-    ~Order() {
-        // автоматическое удаление payment
+    void setPayment(std::unique_ptr<Payment> p) {
+        payment = std::move(p);
     }
 };
+Жизненный цикл Payment полностью контролируется объектом Order.
 
-// Использование
-auto cardPayment = make_unique<CardPayment>("1234567890123456", "12/25", "123");
-order->setPayment(move(cardPayment));
-Использование shared_ptr
-Правило: Используйте shared_ptr для совместного владения ресурсом.
+shared_ptr
+Применяется, когда заказ разделяется между несколькими владельцами (например, пользователем и внутренними коллекциями):
 
-// В классе User
+cpp
 class User {
 private:
-    vector<shared_ptr<Order>> orders;
-    
+    std::vector<std::shared_ptr<Order>> orders;
 public:
-    void addOrder(shared_ptr<Order> order) {
+    void addOrder(std::shared_ptr<Order> order) {
         orders.push_back(order);
     }
 };
+STL и алгоритмы
+Используются стандартные контейнеры и алгоритмы:
 
-// Использование
-auto order = make_shared<Order>(order_id, user_id, order_date);
-user->addOrder(order);
-STL контейнеры
-vector - динамический массив
-vector<shared_ptr<Order>> orders;
-orders.push_back(make_shared<Order>(101, 1, "2025-01-13"));
+std::vector — хранение коллекций заказов и товаров.
 
-// Итерирование
-for (const auto& order : orders) {
-    cout << "Order: " << order->getOrderId() << endl;
-}
-find_if - поиск с условием
-// Найти первый заказ со статусом "completed"
-auto it = find_if(orders.begin(), orders.end(),
-    [](const shared_ptr<Order>& order) {
-        return order->getStatus() == "completed";
-    });
+std::map / std::set — кэширование и хранение уникальных идентификаторов.
 
-if (it != orders.end()) {
-    cout << "Найден заказ: " << (*it)->getOrderId() << endl;
-}
-copy_if - фильтрация элементов
-// Копировать все завершённые заказы
-vector<shared_ptr<Order>> completed_orders;
-copy_if(orders.begin(), orders.end(), 
-    back_inserter(completed_orders),
-    [](const shared_ptr<Order>& o) {
-        return o->getStatus() == "completed";
-    });
-accumulate - агрегация данных
-// Подсчитать общую сумму всех заказов
-double total = accumulate(orders.begin(), orders.end(), 0.0,
-    [](double sum, const shared_ptr<Order>& order) {
-        return sum + order->getOrderTotal();
-    });
+std::find_if — поиск заказов по условию (статус, идентификатор).
 
-cout << "Итоговая сумма: " << total << " руб." << endl;
-map - ассоциативный массив
-map<int, shared_ptr<Product>> productCache;
-productCache[1] = make_shared<Product>(1, "Ноутбук", 50000, 5);
+std::copy_if — фильтрация заказов (например, только completed).
 
-if (productCache.find(1) != productCache.end()) {
-    cout << productCache[1]->getName() << endl;
-}
+std::accumulate — подсчёт выручки, количества проданных товаров и т.п.
+
 Система ролей и прав доступа
-Три роли в системе
-1. Администратор (Admin)
-class Admin : public User {
-public:
-    // Управление товарами
-    void addProduct(shared_ptr<Product> product);
-    void removeProduct(int productId);
-    void updateProduct(int productId, double newPrice, int newQuantity);
-    
-    // Просмотр всех заказов
-    vector<shared_ptr<Order>> viewAllOrders();
-    
-    // Просмотр аудита
-    void viewAuditLog();
-    
-    // Одобрение заказов
-    void approveOrder(int orderId);
-};
-Права:
+Администратор (Admin)
+Возможности:
 
-✅ Просмотр всех заказов
-✅ Управление товарами (CRUD)
-✅ Просмотр аудита
-✅ Одобрение заказов
-✅ Создание и удаление пользователей
-2. Менеджер (Manager)
-class Manager : public User {
-public:
-    // Просмотр ожидающих заказов
-    vector<shared_ptr<Order>> viewPendingOrders();
-    
-    // Изменение статуса заказа
-    void updateOrderStatus(int orderId, const string& newStatus);
-    
-    // Обработка платежа
-    void processPayment(int orderId);
-    
-    // Отклонение заказа
-    void rejectOrder(int orderId);
-};
-Права:
+Полный CRUD по товарам (Product).
 
-✅ Просмотр ожидающих заказов
-✅ Изменение статуса заказа
-✅ Обработка платежей
-✅ Отклонение заказов
-❌ Управление товарами
-❌ Просмотр аудита других пользователей
-3. Покупатель (Customer)
-class Customer : public User {
-public:
-    // Создание заказа
-    int createNewOrder(int customerId, const string& orderDate);
-    
-    // Добавление товара в заказ
-    void addToOrder(shared_ptr<Product> product, int quantity);
-    
-    // Оплата заказа
-    void makePayment(int orderId, unique_ptr<PaymentStrategy> paymentMethod);
-    
-    // Возврат товара
-    bool returnProduct(int orderId, int productId);
-    
-    // Просмотр своих заказов
-    vector<shared_ptr<Order>> viewMyOrders();
-    
-    // Отслеживание заказа
-    void trackOrder(int orderId);
-};
-Права:
+Просмотр всех заказов и изменение их статусов.
 
-✅ Создание своих заказов
-✅ Просмотр своих заказов
-✅ Оплата заказов
-✅ Возврат товаров (если не более 30 дней)
-❌ Просмотр чужих заказов
-❌ Управление товарами
-Проверка прав доступа
-// Лямбда-функция для проверки прав
-auto hasAccessToAllOrders = [](const string& role) -> bool {
-    return role == "admin" || role == "manager";
-};
+Просмотр и выгрузка журнала аудита в CSV.
 
-// Использование в коде
-if (hasAccessToAllOrders(user->getRole())) {
-    // Показать все заказы
-} else {
-    // Показать только свои заказы
-}
+Управление пользователями (создание/удаление, назначение ролей).
 
-// Комплексная проверка прав
-auto canPerformAction = [](const string& role, const string& action) -> bool {
-    if (role == "admin") return true;  // admin может всё
-    if (role == "manager" && action != "delete_user") return true;
-    if (role == "customer" && (action == "create_order" || action == "view_own_orders")) return true;
-    return false;
-};
+Типичные методы:
+
+addProduct, updateProduct, removeProduct.
+
+viewAllOrders, approveOrder, rejectOrder.
+
+viewAuditLog, exportAuditToCSV.
+
+Менеджер (Manager)
+Возможности:
+
+Просмотр и обработка заказов в статусе pending.
+
+Изменение статуса заказов, проведение платежей.
+
+Контроль остатков и выявление товаров с низким количеством.
+
+Ограничения:
+
+Нет прав на создание/удаление пользователей.
+
+Нет полного доступа к аудиту и настройке системы.
+
+Покупатель (Customer)
+Возможности:
+
+Создание собственных заказов и добавление товаров.
+
+Оплата заказов через выбранную стратегию (Card, Wallet, SBP).
+
+Просмотр своих заказов и отслеживание статуса.
+
+Возврат товаров при соблюдении условий (например, не позднее 30 дней).
+
+Ограничения:
+
+Нет доступа к чужим заказам.
+
+Нет управления товарами и пользователями.
+
 Аудит и логирование
-Автоматическое логирование через триггеры
-Все изменения в основных таблицах автоматически логируются:
+Система поддерживает централизованный аудит всех ключевых операций.
 
--- Триггер для логирования операций создания заказа
-CREATE TRIGGER log_order_create
-AFTER INSERT ON orders
-FOR EACH ROW
-EXECUTE FUNCTION log_order_operation();
+Триггеры в БД
+Для таблиц orders, products, payments и др. создаются триггеры, которые при вставке/обновлении/удалении записывают данные в audit_log.
 
--- Триггер для логирования изменения статуса
-CREATE TRIGGER log_order_status_change
-AFTER UPDATE OF status ON orders
-FOR EACH ROW
-EXECUTE FUNCTION log_status_change();
+Примеры действий, попадающих в аудит:
 
--- Триггер для логирования удаления товара
-CREATE TRIGGER log_product_delete
-BEFORE DELETE ON products
-FOR EACH ROW
-EXECUTE FUNCTION log_product_operation();
-Функции для работы с аудитом
--- Получить весь аудит конкретного пользователя
-SELECT * FROM getAuditLogByUser(3);
+Создание заказа и изменение его статуса.
 
--- Сгенерировать отчёт аудита заказов
-SELECT * FROM generateOrderAuditReport();
+Создание/обновление/удаление товара.
 
--- Просмотреть историю статусов заказа
-SELECT * FROM getOrderStatusHistory(101);
+Проведение платежей и возвратов.
 
--- Проверить, можно ли вернуть товар (не более 30 дней)
-SELECT canReturnOrder(101);
+Типичные запросы к аудиту
+Получение аудита по пользователю.
 
--- Получить дни с момента заказа
-SELECT getDaysSinceOrder(101);
-Таблица audit_log
-Поле	Тип	Описание
-log_id	SERIAL	Уникальный ID записи
-user_id	INT	ID пользователя, выполнившего операцию
-operation	VARCHAR	Операция (INSERT, UPDATE, DELETE)
-table_name	VARCHAR	Имя таблицы
-record_id	INT	ID изменённой записи
-details	TEXT	Дополнительные детали
-created_at	TIMESTAMP	Время операции
-Примеры логирования
--- Логирование создания заказа
-INSERT INTO audit_log (user_id, operation, table_name, record_id, details)
-VALUES (3, 'CREATE', 'orders', 101, 'Order created for customer');
+История изменений статусов конкретного заказа.
 
--- Логирование изменения статуса
-INSERT INTO audit_log (user_id, operation, table_name, record_id, details)
-VALUES (2, 'UPDATE', 'orders', 101, 'Status changed from pending to completed');
+Активность по дате/периоду.
 
--- Логирование возврата товара
-INSERT INTO audit_log (user_id, operation, table_name, record_id, details)
-VALUES (3, 'RETURN', 'order_items', 201, 'Product returned within 30 days');
 Примеры SQL запросов
-Получение информации
--- 1. Получить все заказы пользователя
-SELECT * FROM orders WHERE user_id = 3;
+Информация о заказах
+sql
+-- Все заказы пользователя
+SELECT *
+FROM orders
+WHERE user_id = :user_id
+ORDER BY order_date DESC;
 
--- 2. Получить детали заказа с товарами
-SELECT o.order_id, o.order_date, p.name, oi.quantity, oi.unit_price
-FROM orders o
-JOIN order_items oi ON o.order_id = oi.order_id
-JOIN products p ON oi.product_id = p.product_id
-WHERE o.order_id = 101;
-
--- 3. Получить популярные товары
-SELECT product_id, COUNT(*) as purchase_count
-FROM order_items
-GROUP BY product_id
-ORDER BY purchase_count DESC
-LIMIT 5;
-
--- 4. Получить статус заказа
-SELECT getOrderStatus(101);
-
--- 5. Получить всё потраченное пользователем
-SELECT getTotalSpentByUser(3);
-
--- 6. Получить количество заказов пользователя
-SELECT getUserOrderCount(3);
-Модификация данных
--- 1. Создать новый заказ
-CALL createOrder(3, '2025-01-13');
-
--- 2. Добавить товар в заказ
-CALL addItemToOrder(101, 1, 2);  -- заказ 101, товар 1, кол-во 2
-
--- 3. Обновить статус заказа
-CALL updateOrderStatus(101, 'completed');
-
--- 4. Отменить заказ
-CALL cancelOrder(101);
-
--- 5. Вернуть товар (если в пределах 30 дней)
-CALL returnOrder(101);
-
--- 6. Удалить товар из заказа
-CALL removeItemFromOrder(101, 1);
-Сложные запросы
--- 1. Получить заказы с рассчитанной суммой
-SELECT 
+-- Детали конкретного заказа
+SELECT
     o.order_id,
     o.order_date,
+    o.status,
+    p.name       AS product_name,
+    oi.quantity,
+    oi.unit_price,
+    oi.quantity * oi.unit_price AS line_total
+FROM orders o
+JOIN order_items oi ON o.order_id = oi.order_id
+JOIN products p     ON oi.product_id = p.product_id
+WHERE o.order_id = :order_id;
+Популярные товары
+sql
+SELECT
+    p.product_id,
+    p.name,
+    COUNT(oi.order_item_id)         AS purchase_count,
+    SUM(oi.quantity)                AS total_sold,
+    SUM(oi.quantity * oi.unit_price) AS total_revenue
+FROM order_items oi
+JOIN products p ON oi.product_id = p.product_id
+GROUP BY p.product_id, p.name
+ORDER BY total_revenue DESC
+LIMIT 10;
+Статистика по пользователю
+sql
+SELECT
     u.name,
-    SUM(oi.quantity * oi.unit_price) as total
+    COUNT(o.order_id)      AS order_count,
+    SUM(o.total_amount)    AS total_spent,
+    AVG(o.total_amount)    AS avg_order_value
 FROM orders o
 JOIN users u ON o.user_id = u.user_id
-JOIN order_items oi ON o.order_id = oi.order_id
-GROUP BY o.order_id, o.order_date, u.name
-ORDER BY total DESC;
-
--- 2. Получить доход по менеджерам
-SELECT 
-    u.name,
-    COUNT(o.order_id) as orders_count,
-    SUM(o.total_amount) as total_revenue
-FROM orders o
-JOIN audit_log a ON o.order_id = a.record_id
-JOIN users u ON a.user_id = u.user_id
-WHERE u.role = 'manager' AND a.operation = 'UPDATE'
-GROUP BY u.name
-ORDER BY total_revenue DESC;
-
--- 3. Товары, требующие пополнения (менее 5 штук)
-SELECT * FROM products WHERE quantity_in_stock < 5;
-
--- 4. История платежей по дате
-SELECT * FROM audit_log
-WHERE operation = 'PAYMENT'
-ORDER BY created_at DESC
-LIMIT 10;
-
--- 5. Процент возвратов по товарам
-SELECT 
-    p.name,
-    COUNT(CASE WHEN o.status = 'returned' THEN 1 END) as returns,
-    COUNT(o.order_id) as total,
-    ROUND(100.0 * COUNT(CASE WHEN o.status = 'returned' THEN 1 END) / COUNT(o.order_id), 2) as return_percent
-FROM orders o
-JOIN order_items oi ON o.order_id = oi.order_id
-JOIN products p ON oi.product_id = p.product_id
-GROUP BY p.name
-ORDER BY return_percent DESC;
+WHERE u.user_id = :user_id
+GROUP BY u.name;
 Сборка и запуск
+Требования
+C++17‑совместимый компилятор (GCC, Clang или MSVC).
 
+CMake 3.10+ для конфигурации и сборки.
 
+PostgreSQL 12+ и библиотека libpqxx.
 
+Общая схема
+Установить PostgreSQL и libpqxx.
 
-Файлы проекта
-online-store/
-├── src/
-│   └── main.cpp                 # Главная программа
+Создать пользователя и базу данных для интернет‑магазина.
+
+Последовательно выполнить SQL‑скрипты:
+
+создание таблиц,
+
+функции и процедуры,
+
+триггеры,
+
+тестовые данные.
+
+Собрать проект через CMake.
+
+Запустить бинарный файл (OnlineShop / OnlineShop.exe).
+
+Структура проекта
+text
+Zadacha_examen/
 ├── include/
-│   ├── database_connection.h    # Шаблон для БД
-│   ├── payment_strategy.h       # Стратегии оплаты
-│   ├── payment.h                # Класс платежа
-│   ├── order_item.h             # Элемент заказа
-│   ├── order.h                  # Класс заказа
-│   ├── product.h                # Класс товара
-│   ├── user.h                   # Базовый класс
-│   ├── admin.h                  # Администратор
-│   ├── manager.h                # Менеджер
-│   └── customer.h               # Покупатель
+│   ├── DatabaseConnection.h
+│   ├── User.h
+│   ├── Admin.h
+│   ├── Manager.h
+│   ├── Customer.h
+│   ├── Order.h
+│   ├── OrderItem.h
+│   ├── Product.h
+│   ├── Payment.h
+│   ├── PaymentStrategy.h
+│   ├── CardPayment.h
+│   ├── WalletPayment.h
+│   ├── SBPPayment.h
+│   ├── Menu.h
+│   ├── Logger.h
+│   └── ReportGenerator.h
+│
+├── src/
+│   ├── main.cpp
+│   ├── DatabaseConnection.cpp
+│   ├── User.cpp
+│   ├── Admin.cpp
+│   ├── Manager.cpp
+│   ├── Customer.cpp
+│   ├── Order.cpp
+│   ├── OrderItem.cpp
+│   ├── Product.cpp
+│   ├── Payment.cpp
+│   ├── PaymentStrategy.cpp
+│   ├── CardPayment.cpp
+│   ├── WalletPayment.cpp
+│   ├── SBPPayment.cpp
+│   ├── Menu.cpp
+│   ├── Logger.cpp
+│   └── ReportGenerator.cpp
+│
 ├── sql/
-│   ├── tables.sql               # Таблицы (1-е выполнить)
-│   ├── functions.sql            # Функции (2-е)
-│   ├── procedures.sql           # Процедуры (3-е)
-│   ├── triggers.sql             # Триггеры (4-е)
-│   └── sample_data.sql          # Примеры (5-е)
+│   ├── tables.sql        # структура таблиц
+│   ├── functions.sql     # функции и утилиты
+│   ├── procedures.sql    # хранимые процедуры
+│   ├── triggers.sql      # триггеры аудита и статусов
+│   └── sample_data.sql   # тестовые данные
+│
 ├── CMakeLists.txt
-└── README.md                    # Эта документация
+├── README.md
+└── OnlineShop.exe (или бинарник после сборки)
+Использованные техники
+ООП: наследование, полиморфизм, инкапсуляция, композиция, агрегация.
 
+Управление памятью: std::unique_ptr, std::shared_ptr, RAII.
 
+STL: std::vector, std::map, std::set и алгоритмы find_if, copy_if, accumulate.
 
+Паттерны проектирования: Strategy, частично MVC‑подход, RAII.
 
-Контакты и поддержка
+Работа с БД: транзакции, хранимые процедуры, функции, триггеры, индексы.
+
+Контакты
 Автор: Артём Талахов
 GitHub: https://github.com/Artxmvl
 Email: talakhovartem2007@gmail.com
