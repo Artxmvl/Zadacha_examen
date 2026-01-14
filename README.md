@@ -188,7 +188,7 @@ CREATE INDEX idx_payments_order_id           ON payments(order_id);
 unique_ptr
 Используется для эксклюзивного владения ресурсами:
 
-cpp
+```cpp
 class Order {
 private:
     std::unique_ptr<Payment> payment;
@@ -197,12 +197,13 @@ public:
         payment = std::move(p);
     }
 };
+```
 Жизненный цикл Payment полностью контролируется объектом Order.
 
 shared_ptr
 Применяется, когда заказ разделяется между несколькими владельцами (например, пользователем и внутренними коллекциями):
 
-cpp
+```cpp
 class User {
 private:
     std::vector<std::shared_ptr<Order>> orders;
@@ -211,6 +212,7 @@ public:
         orders.push_back(order);
     }
 };
+```
 STL и алгоритмы
 Используются стандартные контейнеры и алгоритмы:
 
@@ -299,7 +301,7 @@ viewAuditLog, exportAuditToCSV.
 
 Примеры SQL запросов
 Информация о заказах
-sql
+```sql
 -- Все заказы пользователя
 SELECT *
 FROM orders
@@ -319,8 +321,9 @@ FROM orders o
 JOIN order_items oi ON o.order_id = oi.order_id
 JOIN products p     ON oi.product_id = p.product_id
 WHERE o.order_id = :order_id;
+```
 Популярные товары
-sql
+```sql
 SELECT
     p.product_id,
     p.name,
@@ -343,6 +346,7 @@ FROM orders o
 JOIN users u ON o.user_id = u.user_id
 WHERE u.user_id = :user_id
 GROUP BY u.name;
+```
 Сборка и запуск
 Требования
 C++17‑совместимый компилятор (GCC, Clang или MSVC).
