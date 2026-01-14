@@ -90,10 +90,11 @@ CREATE TABLE users (
     role          VARCHAR(20) NOT NULL,  -- admin, manager, customer
     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+```
 Хранит данные о пользователях и их ролях.
 
 Таблица products
-sql
+```sql
 CREATE TABLE products (
     product_id        SERIAL PRIMARY KEY,
     name              VARCHAR(100) NOT NULL,
@@ -103,10 +104,11 @@ CREATE TABLE products (
     category          VARCHAR(50),
     created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+```
 Каталог товаров с ценами, категориями и остатками.
 
 Таблица orders
-sql
+```sql
 CREATE TABLE orders (
     order_id     SERIAL PRIMARY KEY,
     user_id      INT NOT NULL REFERENCES users(user_id),
@@ -115,10 +117,11 @@ CREATE TABLE orders (
     total_amount NUMERIC(10, 2) CHECK (total_amount >= 0),
     created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+```
 Основная сущность заказов, связана с пользователями.
 
 Таблица order_items
-sql
+```sql
 CREATE TABLE order_items (
     order_item_id SERIAL PRIMARY KEY,
     order_id      INT NOT NULL REFERENCES orders(order_id),
@@ -127,10 +130,11 @@ CREATE TABLE order_items (
     unit_price    NUMERIC(10, 2) NOT NULL,
     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+```
 Содержит товары, входящие в каждый заказ.
 
 Таблица order_status_history
-sql
+```sql
 CREATE TABLE order_status_history (
     history_id SERIAL PRIMARY KEY,
     order_id   INT NOT NULL REFERENCES orders(order_id),
@@ -139,10 +143,11 @@ CREATE TABLE order_status_history (
     changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     changed_by INT REFERENCES users(user_id)
 );
+```
 Хранит историю изменения статусов заказов (для аудита и трассировки).
 
 Таблица payments
-sql
+```sql
 CREATE TABLE payments (
     payment_id    SERIAL PRIMARY KEY,
     order_id      INT NOT NULL REFERENCES orders(order_id),
@@ -151,10 +156,11 @@ CREATE TABLE payments (
     status        VARCHAR(20) DEFAULT 'pending',
     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+```
 Отражает факты оплаты заказов.
 
 Таблица audit_log
-sql
+```sql
 CREATE TABLE audit_log (
     log_id     SERIAL PRIMARY KEY,
     user_id    INT,
@@ -164,10 +170,11 @@ CREATE TABLE audit_log (
     details    TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+```
 Используется для ведения общего аудита по системе.
 
 Индексы
-sql
+```sql
 CREATE INDEX idx_orders_user_id              ON orders(user_id);
 CREATE INDEX idx_orders_status               ON orders(status);
 CREATE INDEX idx_order_items_order_id        ON order_items(order_id);
@@ -176,6 +183,7 @@ CREATE INDEX idx_order_status_history_order  ON order_status_history(order_id);
 CREATE INDEX idx_audit_log_user_id           ON audit_log(user_id);
 CREATE INDEX idx_audit_log_created_at        ON audit_log(created_at);
 CREATE INDEX idx_payments_order_id           ON payments(order_id);
+```
 Умные указатели и STL
 unique_ptr
 Используется для эксклюзивного владения ресурсами:
