@@ -374,56 +374,6 @@ PostgreSQL 12+ и библиотека libpqxx.
 
 Запустить бинарный файл (OnlineShop / OnlineShop.exe).
 
-Структура проекта
-text
-Zadacha_examen/
-├── include/
-│   ├── DatabaseConnection.h
-│   ├── User.h
-│   ├── Admin.h
-│   ├── Manager.h
-│   ├── Customer.h
-│   ├── Order.h
-│   ├── OrderItem.h
-│   ├── Product.h
-│   ├── Payment.h
-│   ├── PaymentStrategy.h
-│   ├── CardPayment.h
-│   ├── WalletPayment.h
-│   ├── SBPPayment.h
-│   ├── Menu.h
-│   ├── Logger.h
-│   └── ReportGenerator.h
-│
-├── src/
-│   ├── main.cpp
-│   ├── DatabaseConnection.cpp
-│   ├── User.cpp
-│   ├── Admin.cpp
-│   ├── Manager.cpp
-│   ├── Customer.cpp
-│   ├── Order.cpp
-│   ├── OrderItem.cpp
-│   ├── Product.cpp
-│   ├── Payment.cpp
-│   ├── PaymentStrategy.cpp
-│   ├── CardPayment.cpp
-│   ├── WalletPayment.cpp
-│   ├── SBPPayment.cpp
-│   ├── Menu.cpp
-│   ├── Logger.cpp
-│   └── ReportGenerator.cpp
-│
-├── sql/
-│   ├── tables.sql        # структура таблиц
-│   ├── functions.sql     # функции и утилиты
-│   ├── procedures.sql    # хранимые процедуры
-│   ├── triggers.sql      # триггеры аудита и статусов
-│   └── sample_data.sql   # тестовые данные
-│
-├── CMakeLists.txt
-├── README.md
-└── OnlineShop.exe (или бинарник после сборки)
 Использованные техники
 ООП: наследование, полиморфизм, инкапсуляция, композиция, агрегация.
 
